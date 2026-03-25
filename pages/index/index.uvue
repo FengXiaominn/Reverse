@@ -1,0 +1,578 @@
+<template>
+	<scroll-view class="page" scroll-y="true">
+		<view class="hero">
+			<text class="hero-title">Reverse网球</text>
+			<text class="hero-subtitle">MVP：发布约球需求，可选约球后聚餐</text>
+			<view class="inbox-entry" @click="goToInvites">
+				<text class="inbox-entry-text">查看收到的邀请</text>
+			</view>
+		</view>
+
+		<view class="section-card">
+			<text class="section-title">约球场地</text>
+			<view class="option-list">
+				<view
+					v-for="(court, index) in courtOptions"
+					:key="court"
+					class="option-item"
+					:class="selectedCourtIndex == index ? 'option-item-active' : ''"
+					@click="pickCourt(index)"
+				>
+					<text class="option-text">{{ court }}</text>
+				</view>
+			</view>
+			<view class="form-row" v-if="currentCourt == '其他'">
+				<text class="label">自定义场地</text>
+				<input class="input" v-model="customCourt" placeholder="请输入场地名称" />
+			</view>
+		</view>
+
+		<view class="section-card">
+			<text class="section-title">约球时间</text>
+			<view class="form-row">
+				<text class="label">日期</text>
+				<picker mode="date" :value="tennisDate" @change="onTennisDateChange">
+					<view class="picker-box">
+						<text class="picker-text">{{ tennisDate.length > 0 ? tennisDate : '请选择日期' }}</text>
+					</view>
+				</picker>
+			</view>
+			<view class="form-row">
+				<text class="label">具体时间</text>
+				<picker mode="time" :value="tennisTime" @change="onTennisTimeChange">
+					<view class="picker-box">
+						<text class="picker-text">{{ tennisTime.length > 0 ? tennisTime : '请选择时间' }}</text>
+					</view>
+				</picker>
+			</view>
+		</view>
+
+		<view class="section-card">
+			<text class="section-title">是否聚餐</text>
+			<view class="switch-row">
+				<view
+					class="switch-item"
+					:class="hasDinner ? '' : 'switch-item-active'"
+					@click="setDinner(false)"
+				>
+					<text class="switch-text" :class="hasDinner ? '' : 'switch-text-active'">不聚餐</text>
+				</view>
+				<view
+					class="switch-item"
+					:class="hasDinner ? 'switch-item-active' : ''"
+					@click="setDinner(true)"
+				>
+					<text class="switch-text" :class="hasDinner ? 'switch-text-active' : ''">约球后聚餐</text>
+				</view>
+			</view>
+
+			<view class="form-row" v-if="hasDinner">
+				<text class="label">口味偏好</text>
+				<input class="input" v-model="dinnerTaste" placeholder="例如：川菜 / 粤菜 / 西餐" />
+			</view>
+			<view class="form-row" v-if="hasDinner">
+				<text class="label">人均预算（元）</text>
+				<input class="input" v-model="dinnerBudget" type="number" placeholder="例如：80" />
+			</view>
+		</view>
+
+		<view class="section-card">
+			<text class="section-title">活动信息</text>
+			<view class="form-row">
+				<text class="label">人数</text>
+				<input class="input" v-model="peopleCount" type="number" placeholder="例如：4" />
+			</view>
+			<view class="form-row">
+				<text class="label">备注</text>
+				<textarea class="textarea" v-model="note" placeholder="可写：水平要求、费用AA、集合点等"></textarea>
+			</view>
+			<button class="submit-btn" @click="publishRequest">发布约球</button>
+		</view>
+
+		<view class="section-card result" v-if="published">
+			<text class="section-title">已发布</text>
+			<text class="result-line">场地：{{ displayCourt }}</text>
+			<text class="result-line">日期：{{ tennisDate }}</text>
+			<text class="result-line">时间：{{ tennisTime }}</text>
+			<text class="result-line">人数：{{ peopleCount }}</text>
+			<text class="result-line">聚餐：{{ hasDinner ? '是' : '否' }}</text>
+			<text class="result-line" v-if="hasDinner">口味：{{ dinnerTaste }}</text>
+			<text class="result-line" v-if="hasDinner">预算：{{ dinnerBudget }} 元/人</text>
+			<text class="result-line">备注：{{ note }}</text>
+		</view>
+
+		<view class="section-card host-board">
+			<text class="section-title">发起人可见的响应</text>
+			<text class="section-note">你在“收到的邀请”页点击接受/拒绝后，这里会从接口同步更新。</text>
+			<text class="loading-text" v-if="hostLoading">加载中...</text>
+			<text class="loading-text" v-if="!hostLoading && hostViewInvites.length == 0">暂无响应数据</text>
+			<view class="host-item" v-for="invite in hostViewInvites" :key="invite.id">
+				<view class="host-top">
+					<text class="host-title">{{ invite.from }} 发起的约球</text>
+					<text class="host-status" :class="statusClass(invite.status)">{{ statusText(invite.status) }}</text>
+				</view>
+				<text class="host-line">场地：{{ invite.court }}  日期：{{ invite.date }} {{ invite.time }}</text>
+				<text class="host-line">我的响应备注：{{ invite.replyNote.length > 0 ? invite.replyNote : '无' }}</text>
+			</view>
+		</view>
+
+		<view class="section-card notice-board">
+			<text class="section-title">我的通知</text>
+			<text class="section-note">群成员点击参加后，你会在这里看到报名通知。</text>
+			<text class="loading-text" v-if="notifications.length == 0">暂无通知</text>
+			<view class="host-item" v-for="item in notifications" :key="item.id">
+				<text class="host-title">{{ item.title }}</text>
+				<text class="host-line">{{ item.content }}</text>
+				<text class="host-line">{{ item.time }}</text>
+			</view>
+		</view>
+	</scroll-view>
+</template>
+
+<script setup lang="uts">
+import { createActivity, getHostNotifications, getHostViewInvites } from '../../utils/invite-api.uts'
+
+const courtOptions = ref(['鹏迈', '极星', '麦恩', '其他'])
+const selectedCourtIndex = ref(0)
+const customCourt = ref('')
+
+const tennisDate = ref('')
+const tennisTime = ref('')
+const peopleCount = ref('')
+const note = ref('')
+
+const hasDinner = ref(false)
+const dinnerTaste = ref('')
+const dinnerBudget = ref('')
+
+const published = ref(false)
+const hostViewInvites = ref<Array<any>>([])
+const hostLoading = ref(false)
+const notifications = ref<Array<any>>([])
+let refreshTimer : number = 0
+
+const currentCourt = computed(() => {
+	return courtOptions.value[selectedCourtIndex.value]
+})
+
+const displayCourt = computed(() => {
+	if (currentCourt.value == '其他' && customCourt.value.length > 0) {
+		return customCourt.value
+	}
+	return currentCourt.value
+})
+
+function goToInvites() {
+	uni.navigateTo({
+		url: '/pages/invites/index'
+	})
+}
+
+function loadHostViewInvites() {
+	loadHostViewInvitesInternal(false)
+}
+
+function loadHostViewInvitesSilent() {
+	loadHostViewInvitesInternal(true)
+}
+
+function loadHostViewInvitesInternal(silent : boolean) {
+	hostLoading.value = true
+	getHostViewInvites(
+		(list) => {
+			hostViewInvites.value = list
+			hostLoading.value = false
+		},
+		(msg) => {
+			hostLoading.value = false
+			if (!silent) {
+				uni.showToast({
+					title: msg,
+					icon: 'none'
+				})
+			}
+		}
+	)
+}
+
+function statusText(status : string) : string {
+	if (status == 'accepted') {
+		return '已接受'
+	}
+	if (status == 'rejected') {
+		return '已拒绝'
+	}
+	return '待响应'
+}
+
+function statusClass(status : string) : string {
+	if (status == 'accepted') {
+		return 'status-accepted'
+	}
+	if (status == 'rejected') {
+		return 'status-rejected'
+	}
+	return 'status-pending'
+}
+
+onShow(() => {
+	loadHostViewInvites()
+	loadHostNotifications()
+	stopTimer()
+	refreshTimer = setInterval(() => {
+		loadHostViewInvitesSilent()
+		loadHostNotificationsSilent()
+	}, 5000)
+})
+
+onHide(() => {
+	stopTimer()
+})
+
+onUnmounted(() => {
+	stopTimer()
+})
+
+function stopTimer() {
+	if (refreshTimer != 0) {
+		clearInterval(refreshTimer)
+		refreshTimer = 0
+	}
+}
+
+function loadHostNotifications() {
+	loadHostNotificationsInternal(false)
+}
+
+function loadHostNotificationsSilent() {
+	loadHostNotificationsInternal(true)
+}
+
+function loadHostNotificationsInternal(silent : boolean) {
+	getHostNotifications(
+		(list) => {
+			notifications.value = list
+		},
+		(msg) => {
+			if (!silent) {
+				uni.showToast({
+					title: msg,
+					icon: 'none'
+				})
+			}
+		}
+	)
+}
+
+function pickCourt(index : number) {
+	selectedCourtIndex.value = index
+}
+
+function setDinner(value : boolean) {
+	hasDinner.value = value
+	if (!value) {
+		dinnerTaste.value = ''
+		dinnerBudget.value = ''
+	}
+}
+
+function onTennisDateChange(e : UniPickerChangeEvent) {
+	tennisDate.value = e.detail.value
+}
+
+function onTennisTimeChange(e : UniPickerChangeEvent) {
+	tennisTime.value = e.detail.value
+}
+
+function publishRequest() {
+	if (currentCourt.value == '其他' && customCourt.value.length == 0) {
+		uni.showToast({
+			title: '请填写自定义场地',
+			icon: 'none'
+		})
+		return
+	}
+	if (tennisDate.value.length == 0) {
+		uni.showToast({
+			title: '请选择约球日期',
+			icon: 'none'
+		})
+		return
+	}
+	if (tennisTime.value.length == 0) {
+		uni.showToast({
+			title: '请选择约球时间',
+			icon: 'none'
+		})
+		return
+	}
+	if (peopleCount.value.length == 0) {
+		uni.showToast({
+			title: '请先填写人数',
+			icon: 'none'
+		})
+		return
+	}
+	if (hasDinner.value && (dinnerTaste.value.length == 0 || dinnerBudget.value.length == 0)) {
+		uni.showToast({
+			title: '请补全聚餐信息',
+			icon: 'none'
+		})
+		return
+	}
+
+	createActivity(
+		{
+			organizer: '我',
+			court: displayCourt.value,
+			date: tennisDate.value,
+			time: tennisTime.value,
+			people: peopleCount.value,
+			hasDinner: hasDinner.value,
+			dinnerTaste: dinnerTaste.value,
+			dinnerBudget: dinnerBudget.value,
+			note: note.value
+		},
+		(activityId) => {
+			published.value = true
+			uni.showToast({
+				title: '发布成功',
+				icon: 'success'
+			})
+			uni.navigateTo({
+				url: `/pages/share/index?activityId=${activityId}`
+			})
+		},
+		(msg) => {
+			uni.showToast({
+				title: msg,
+				icon: 'none'
+			})
+		}
+	)
+}
+</script>
+
+<style>
+.page {
+	height: 100vh;
+	background: linear-gradient(180deg, #f6f8ff 0%, #edf2ff 100%);
+}
+
+.hero {
+	padding: 20px 16px 12px;
+}
+
+.hero-title {
+	font-size: 24px;
+	font-weight: 600;
+	color: #23304d;
+}
+
+.hero-subtitle {
+	margin-top: 6px;
+	font-size: 14px;
+	color: #5f6e8a;
+}
+
+.inbox-entry {
+	margin-top: 12px;
+	padding: 8px 12px;
+	border-radius: 8px;
+	align-self: flex-start;
+	background-color: #2f6bff;
+}
+
+.inbox-entry-text {
+	color: #ffffff;
+	font-size: 13px;
+}
+
+.section-card {
+	margin: 12px 12px 0;
+	padding: 14px;
+	border-radius: 12px;
+	background-color: #ffffff;
+}
+
+.section-title {
+	font-size: 16px;
+	font-weight: 600;
+	color: #1f2a44;
+}
+
+.section-note {
+	margin-top: 6px;
+	font-size: 12px;
+	color: #7c88a3;
+}
+
+.loading-text {
+	display: block;
+	margin-top: 10px;
+	font-size: 13px;
+	color: #6a7897;
+}
+
+.option-list {
+	margin-top: 10px;
+}
+
+.option-item {
+	padding: 10px;
+	border-radius: 8px;
+	margin-bottom: 8px;
+	background-color: #f4f6fb;
+}
+
+.option-item-active {
+	background-color: #dbe6ff;
+}
+
+.option-text {
+	font-size: 14px;
+	color: #2b3752;
+}
+
+.switch-row {
+	margin-top: 12px;
+	flex-direction: row;
+	justify-content: space-between;
+}
+
+.switch-item {
+	width: 48%;
+	padding: 10px 0;
+	border-radius: 10px;
+	background-color: #eef2ff;
+	align-items: center;
+}
+
+.switch-item-active {
+	background-color: #2f6bff;
+}
+
+.switch-text {
+	font-size: 15px;
+	color: #22314f;
+}
+
+.switch-text-active {
+	color: #ffffff;
+}
+
+.form-row {
+	margin-top: 12px;
+}
+
+.label {
+	font-size: 13px;
+	color: #5b6882;
+}
+
+.input {
+	height: 38px;
+	margin-top: 6px;
+	padding: 0 10px;
+	border-radius: 8px;
+	background-color: #f4f6fb;
+}
+
+.picker-box {
+	height: 38px;
+	margin-top: 6px;
+	padding: 0 10px;
+	border-radius: 8px;
+	background-color: #f4f6fb;
+	justify-content: center;
+}
+
+.picker-text {
+	font-size: 14px;
+	color: #2c3a56;
+}
+
+.textarea {
+	height: 72px;
+	margin-top: 6px;
+	padding: 8px 10px;
+	border-radius: 8px;
+	background-color: #f4f6fb;
+}
+
+.submit-btn {
+	margin-top: 16px;
+	height: 40px;
+	line-height: 40px;
+	border-radius: 8px;
+	background-color: #2f6bff;
+	color: #ffffff;
+	font-size: 15px;
+}
+
+.result {
+	margin-bottom: 20px;
+	background-color: #f8fbff;
+}
+
+.result-line {
+	display: block;
+	margin-top: 8px;
+	font-size: 14px;
+	color: #2c3a56;
+}
+
+.host-board {
+	margin-bottom: 20px;
+}
+
+.notice-board {
+	margin-bottom: 20px;
+}
+
+.host-item {
+	margin-top: 10px;
+	padding: 10px;
+	border-radius: 10px;
+	background-color: #f8fbff;
+}
+
+.host-top {
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.host-title {
+	font-size: 14px;
+	color: #1f2a44;
+}
+
+.host-status {
+	font-size: 12px;
+	padding: 2px 8px;
+	border-radius: 10px;
+}
+
+.status-pending {
+	background-color: #ffecc7;
+	color: #9a6a00;
+}
+
+.status-accepted {
+	background-color: #d7f6df;
+	color: #177245;
+}
+
+.status-rejected {
+	background-color: #ffe1e1;
+	color: #9f2323;
+}
+
+.host-line {
+	display: block;
+	margin-top: 6px;
+	font-size: 13px;
+	color: #43506b;
+}
+</style>

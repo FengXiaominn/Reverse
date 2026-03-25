@@ -1,0 +1,256 @@
+<template>
+	<scroll-view class="page" scroll-y="true">
+		<view class="section-card">
+			<text class="section-title">收到的约球邀请</text>
+			<text class="section-note">可直接响应：接受 / 暂定 / 拒绝</text>
+			<text class="loading-text" v-if="loading">加载中...</text>
+			<text class="loading-text" v-if="!loading && receivedInvites.length == 0">暂无邀请</text>
+			<view class="invite-card" v-for="(invite, index) in receivedInvites" :key="invite.id">
+				<view class="invite-top">
+					<text class="invite-from">{{ invite.from }} 邀请你打球</text>
+					<text class="invite-status" :class="statusClass(invite.status)">{{ statusText(invite.status) }}</text>
+				</view>
+				<text class="invite-line">场地：{{ invite.court }}</text>
+				<text class="invite-line">日期：{{ invite.date }}</text>
+				<text class="invite-line">时间：{{ invite.time }}</text>
+				<text class="invite-line">人数：{{ invite.people }} 人</text>
+				<text class="invite-line">聚餐：{{ invite.hasDinner ? '约球后聚餐' : '不聚餐' }}</text>
+				<input class="input invite-input" v-model="invite.replyNote" placeholder="可填写响应备注（例如：晚到10分钟）" />
+				<view class="action-row">
+					<view class="action-btn agree" @click="respondInvite(index, 'accepted')">
+						<text class="action-text">接受</text>
+					</view>
+					<view class="action-btn maybe" @click="respondInvite(index, 'pending')">
+						<text class="action-text">暂定</text>
+					</view>
+					<view class="action-btn reject" @click="respondInvite(index, 'rejected')">
+						<text class="action-text">拒绝</text>
+					</view>
+				</view>
+			</view>
+		</view>
+	</scroll-view>
+</template>
+
+<script setup lang="uts">
+import { getReceivedInvites, respondToInvite } from '../../utils/invite-api.uts'
+
+const receivedInvites = ref<Array<any>>([])
+const loading = ref(false)
+let refreshTimer : number = 0
+
+function loadInvites() {
+	loading.value = true
+	getReceivedInvites(
+		(list) => {
+			receivedInvites.value = list
+			loading.value = false
+		},
+		(msg) => {
+			loading.value = false
+			uni.showToast({
+				title: msg,
+				icon: 'none'
+			})
+		}
+	)
+}
+
+onShow(() => {
+	loadInvites()
+	stopTimer()
+	refreshTimer = setInterval(() => {
+		loadInvitesSilent()
+	}, 5000)
+})
+
+onHide(() => {
+	stopTimer()
+})
+
+onUnmounted(() => {
+	stopTimer()
+})
+
+function stopTimer() {
+	if (refreshTimer != 0) {
+		clearInterval(refreshTimer)
+		refreshTimer = 0
+	}
+}
+
+function loadInvitesSilent() {
+	getReceivedInvites(
+		(list) => {
+			receivedInvites.value = list
+		},
+		(_msg) => {
+		}
+	)
+}
+
+function statusText(status : string) : string {
+	if (status == 'accepted') {
+		return '已接受'
+	}
+	if (status == 'rejected') {
+		return '已拒绝'
+	}
+	return '待响应'
+}
+
+function statusClass(status : string) : string {
+	if (status == 'accepted') {
+		return 'status-accepted'
+	}
+	if (status == 'rejected') {
+		return 'status-rejected'
+	}
+	return 'status-pending'
+}
+
+function respondInvite(index : number, nextStatus : string) {
+	const invite = receivedInvites.value[index]
+	const note = invite.replyNote != null ? invite.replyNote : ''
+	respondToInvite(
+		invite.id,
+		nextStatus,
+		note,
+		() => {
+			receivedInvites.value[index].status = nextStatus
+			uni.showToast({
+				title: '已更新响应',
+				icon: 'success'
+			})
+		},
+		(msg) => {
+			uni.showToast({
+				title: msg,
+				icon: 'none'
+			})
+		}
+	)
+}
+</script>
+
+<style>
+.page {
+	height: 100vh;
+	background: linear-gradient(180deg, #f6f8ff 0%, #edf2ff 100%);
+}
+
+.section-card {
+	margin: 12px;
+	padding: 14px;
+	border-radius: 12px;
+	background-color: #ffffff;
+}
+
+.section-title {
+	font-size: 16px;
+	font-weight: 600;
+	color: #1f2a44;
+}
+
+.section-note {
+	margin-top: 6px;
+	font-size: 12px;
+	color: #7c88a3;
+}
+
+.loading-text {
+	display: block;
+	margin-top: 10px;
+	font-size: 13px;
+	color: #6a7897;
+}
+
+.invite-card {
+	margin-top: 10px;
+	padding: 10px;
+	border-radius: 10px;
+	background-color: #f8fbff;
+}
+
+.invite-top {
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.invite-from {
+	font-size: 15px;
+	font-weight: 600;
+	color: #1f2a44;
+}
+
+.invite-status {
+	font-size: 12px;
+	padding: 2px 8px;
+	border-radius: 10px;
+}
+
+.status-pending {
+	background-color: #ffecc7;
+	color: #9a6a00;
+}
+
+.status-accepted {
+	background-color: #d7f6df;
+	color: #177245;
+}
+
+.status-rejected {
+	background-color: #ffe1e1;
+	color: #9f2323;
+}
+
+.invite-line {
+	display: block;
+	margin-top: 6px;
+	font-size: 13px;
+	color: #43506b;
+}
+
+.input {
+	height: 38px;
+	margin-top: 6px;
+	padding: 0 10px;
+	border-radius: 8px;
+	background-color: #f4f6fb;
+}
+
+.invite-input {
+	margin-top: 10px;
+}
+
+.action-row {
+	margin-top: 10px;
+	flex-direction: row;
+	justify-content: space-between;
+}
+
+.action-btn {
+	width: 31%;
+	padding: 8px 0;
+	border-radius: 8px;
+	align-items: center;
+}
+
+.agree {
+	background-color: #27ae60;
+}
+
+.maybe {
+	background-color: #f39c12;
+}
+
+.reject {
+	background-color: #e74c3c;
+}
+
+.action-text {
+	color: #ffffff;
+	font-size: 13px;
+}
+</style>

@@ -1,0 +1,239 @@
+// 请替换成你的真实域名（必须 HTTPS，且已在小程序后台配置合法域名）
+const TEST_API_BASE_URL = 'https://test-api.bingzai.cn'
+const PROD_API_BASE_URL = 'https://test-api.bingzai.cn'
+const DEV_API_BASE_URL = 'https://test-api.bingzai.cn'
+
+function trimTrailingSlash(url : string) : string {
+	if (url.endsWith('/')) {
+		return url.substring(0, url.length - 1)
+	}
+	return url
+}
+
+function getMiniProgramEnvVersion() : string {
+	// 小程序环境：develop(开发版) / trial(体验版) / release(正式版)
+	// #ifdef MP-WEIXIN
+	const info : any = wx.getAccountInfoSync()
+	if (info != null && info.miniProgram != null && info.miniProgram.envVersion != null) {
+		return info.miniProgram.envVersion
+	}
+	// #endif
+	return 'develop'
+}
+
+export function getApiBaseUrl() : string {
+	const envVersion = getMiniProgramEnvVersion()
+	if (envVersion == 'develop') {
+		return trimTrailingSlash(DEV_API_BASE_URL)
+	}
+	if (envVersion == 'release') {
+		return trimTrailingSlash(PROD_API_BASE_URL)
+	}
+	return trimTrailingSlash(TEST_API_BASE_URL)
+}
+
+function asList(raw : any) : Array<any> {
+	if (raw == null) {
+		return []
+	}
+	if (raw.data != null && raw.data.length != null) {
+		return raw.data
+	}
+	if (raw.length != null) {
+		return raw
+	}
+	return []
+}
+
+function parseError(err : any) : string {
+	if (err == null) {
+		return '请求失败'
+	}
+	if (err.errMsg != null && err.errMsg.length > 0) {
+		return err.errMsg
+	}
+	return '请求失败'
+}
+
+function withUrl(err : any, url : string) : string {
+	return parseError(err) + ' | ' + url
+}
+
+export function getReceivedInvites(
+	onSuccess : (list : Array<any>) => void,
+	onFail : (msg : string) => void
+) {
+	const baseUrl = getApiBaseUrl()
+	uni.request({
+		url: baseUrl + '/api/invites/received',
+		method: 'GET',
+		success: (res) => {
+			if (res.statusCode >= 200 && res.statusCode < 300) {
+				onSuccess(asList(res.data))
+				return
+			}
+			onFail('获取邀请失败: HTTP ' + res.statusCode)
+		},
+		fail: (err) => {
+			onFail(withUrl(err, baseUrl + '/api/invites/received'))
+		}
+	})
+}
+
+export function getHostViewInvites(
+	onSuccess : (list : Array<any>) => void,
+	onFail : (msg : string) => void
+) {
+	const baseUrl = getApiBaseUrl()
+	uni.request({
+		url: baseUrl + '/api/invites/host-view',
+		method: 'GET',
+		success: (res) => {
+			if (res.statusCode >= 200 && res.statusCode < 300) {
+				onSuccess(asList(res.data))
+				return
+			}
+			onFail('获取发起人视图失败: HTTP ' + res.statusCode)
+		},
+		fail: (err) => {
+			onFail(withUrl(err, baseUrl + '/api/invites/host-view'))
+		}
+	})
+}
+
+export function respondToInvite(
+	inviteId : any,
+	status : string,
+	replyNote : string,
+	onSuccess : () => void,
+	onFail : (msg : string) => void
+) {
+	const baseUrl = getApiBaseUrl()
+	uni.request({
+		url: baseUrl + '/api/invites/respond',
+		method: 'POST',
+		header: {
+			'Content-Type': 'application/json'
+		},
+		data: {
+			inviteId,
+			status,
+			replyNote
+		},
+		success: (res) => {
+			if (res.statusCode >= 200 && res.statusCode < 300) {
+				onSuccess()
+				return
+			}
+			onFail('提交响应失败: HTTP ' + res.statusCode)
+		},
+		fail: (err) => {
+			onFail(withUrl(err, baseUrl + '/api/invites/respond'))
+		}
+	})
+}
+
+export function createActivity(
+	payload : any,
+	onSuccess : (activityId : string) => void,
+	onFail : (msg : string) => void
+) {
+	const baseUrl = getApiBaseUrl()
+	uni.request({
+		url: baseUrl + '/api/activities/create',
+		method: 'POST',
+		header: {
+			'Content-Type': 'application/json'
+		},
+		data: payload,
+		success: (res) => {
+			if (res.statusCode >= 200 && res.statusCode < 300) {
+				const data : any = res.data
+				const activityId = data != null ? data.activityId as string : ''
+				if (activityId != null && activityId.length > 0) {
+					onSuccess(activityId)
+					return
+				}
+				onFail('创建活动失败: 缺少activityId')
+				return
+			}
+			onFail('创建活动失败: HTTP ' + res.statusCode)
+		},
+		fail: (err) => {
+			onFail(withUrl(err, baseUrl + '/api/activities/create'))
+		}
+	})
+}
+
+export function getActivityDetail(
+	activityId : string,
+	onSuccess : (data : any) => void,
+	onFail : (msg : string) => void
+) {
+	const baseUrl = getApiBaseUrl()
+	uni.request({
+		url: baseUrl + '/api/activities/detail?activityId=' + encodeURIComponent(activityId),
+		method: 'GET',
+		success: (res) => {
+			if (res.statusCode >= 200 && res.statusCode < 300) {
+				onSuccess(res.data)
+				return
+			}
+			onFail('获取活动详情失败: HTTP ' + res.statusCode)
+		},
+		fail: (err) => {
+			onFail(withUrl(err, baseUrl + '/api/activities/detail'))
+		}
+	})
+}
+
+export function joinActivity(
+	activityId : string,
+	participantName : string,
+	onSuccess : () => void,
+	onFail : (msg : string) => void
+) {
+	const baseUrl = getApiBaseUrl()
+	uni.request({
+		url: baseUrl + '/api/activities/join',
+		method: 'POST',
+		header: {
+			'Content-Type': 'application/json'
+		},
+		data: {
+			activityId,
+			participantName
+		},
+		success: (res) => {
+			if (res.statusCode >= 200 && res.statusCode < 300) {
+				onSuccess()
+				return
+			}
+			onFail('参加活动失败: HTTP ' + res.statusCode)
+		},
+		fail: (err) => {
+			onFail(withUrl(err, baseUrl + '/api/activities/join'))
+		}
+	})
+}
+
+export function getHostNotifications(
+	onSuccess : (list : Array<any>) => void,
+	onFail : (msg : string) => void
+) {
+	const baseUrl = getApiBaseUrl()
+	uni.request({
+		url: baseUrl + '/api/notifications/host',
+		method: 'GET',
+		success: (res) => {
+			if (res.statusCode >= 200 && res.statusCode < 300) {
+				onSuccess(asList(res.data))
+				return
+			}
+			onFail('获取通知失败: HTTP ' + res.statusCode)
+		},
+		fail: (err) => {
+			onFail(withUrl(err, baseUrl + '/api/notifications/host'))
+		}
+	})
+}

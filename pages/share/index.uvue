@@ -1,0 +1,194 @@
+<template>
+	<scroll-view class="page" scroll-y="true">
+		<view class="section-card" v-if="activity != null">
+			<text class="section-title">活动已发布，可转发到群聊</text>
+			<text class="line">发起人：{{ activity.organizer }}</text>
+			<text class="line">场地：{{ activity.court }}</text>
+			<text class="line">日期：{{ activity.date }}</text>
+			<text class="line">时间：{{ activity.time }}</text>
+			<text class="line">人数：{{ activity.people }}</text>
+			<text class="line">聚餐：{{ activity.hasDinner ? '是' : '否' }}</text>
+			<text class="line">备注：{{ activity.note }}</text>
+			<button class="btn" @click="copyShareText">复制活动信息</button>
+		</view>
+
+		<view class="section-card" v-if="activity != null">
+			<text class="section-title">模拟群成员点击参加</text>
+			<view class="form-row">
+				<text class="label">群成员昵称</text>
+				<input class="input" v-model="participantName" placeholder="例如：小李" />
+			</view>
+			<button class="btn" @click="joinNow">点击参加</button>
+			<text class="tips">参加后：发起人首页会收到通知，邀请页会出现该活动。</text>
+		</view>
+
+		<view class="section-card" v-if="activity != null">
+			<text class="section-title">已参加成员（{{ activity.participants.length }}）</text>
+			<text class="line" v-if="activity.participants.length == 0">暂无</text>
+			<view class="join-item" v-for="item in activity.participants" :key="item.name + item.joinAt">
+				<text class="line">{{ item.name }} · {{ item.joinAt }}</text>
+			</view>
+		</view>
+	</scroll-view>
+</template>
+
+<script setup lang="uts">
+import { getActivityDetail, joinActivity } from '../../utils/invite-api.uts'
+
+const activityId = ref('')
+const activity = ref<any>(null)
+const participantName = ref('')
+let refreshTimer : number = 0
+
+function loadActivity() {
+	if (activityId.value.length == 0) {
+		return
+	}
+	getActivityDetail(
+		activityId.value,
+		(data) => {
+			activity.value = data
+		},
+		(msg) => {
+			uni.showToast({
+				title: msg,
+				icon: 'none'
+			})
+		}
+	)
+}
+
+onLoad((query : UTSJSONObject) => {
+	const id = query['activityId'] as string
+	if (id != null) {
+		activityId.value = id
+	}
+	loadActivity()
+})
+
+onShow(() => {
+	loadActivity()
+	stopTimer()
+	refreshTimer = setInterval(() => {
+		loadActivity()
+	}, 5000)
+})
+
+onHide(() => {
+	stopTimer()
+})
+
+onUnmounted(() => {
+	stopTimer()
+})
+
+function stopTimer() {
+	if (refreshTimer != 0) {
+		clearInterval(refreshTimer)
+		refreshTimer = 0
+	}
+}
+
+function copyShareText() {
+	if (activity.value == null) {
+		return
+	}
+	const text = `【Reverse约球】${activity.value.date} ${activity.value.time}，${activity.value.court}，${activity.value.people}人，回复“参加”即可报名。`
+	uni.setClipboardData({
+		data: text,
+		success: () => {
+			uni.showToast({ title: '已复制，可发群', icon: 'success' })
+		}
+	})
+}
+
+function joinNow() {
+	if (activity.value == null) {
+		return
+	}
+	if (participantName.value.length == 0) {
+		uni.showToast({ title: '请先输入昵称', icon: 'none' })
+		return
+	}
+	joinActivity(
+		activityId.value,
+		participantName.value,
+		() => {
+			uni.showToast({ title: '已参加', icon: 'success' })
+			participantName.value = ''
+			loadActivity()
+		},
+		(msg) => {
+			uni.showToast({ title: msg, icon: 'none' })
+		}
+	)
+}
+</script>
+
+<style>
+.page {
+	height: 100vh;
+	background: linear-gradient(180deg, #f6f8ff 0%, #edf2ff 100%);
+}
+
+.section-card {
+	margin: 12px;
+	padding: 14px;
+	border-radius: 12px;
+	background-color: #ffffff;
+}
+
+.section-title {
+	font-size: 16px;
+	font-weight: 600;
+	color: #1f2a44;
+}
+
+.line {
+	display: block;
+	margin-top: 8px;
+	font-size: 14px;
+	color: #3a4662;
+}
+
+.form-row {
+	margin-top: 10px;
+}
+
+.label {
+	font-size: 13px;
+	color: #5b6882;
+}
+
+.input {
+	height: 38px;
+	margin-top: 6px;
+	padding: 0 10px;
+	border-radius: 8px;
+	background-color: #f4f6fb;
+}
+
+.btn {
+	margin-top: 14px;
+	height: 40px;
+	line-height: 40px;
+	border-radius: 8px;
+	background-color: #2f6bff;
+	color: #ffffff;
+	font-size: 15px;
+}
+
+.tips {
+	display: block;
+	margin-top: 8px;
+	font-size: 12px;
+	color: #6f7f9f;
+}
+
+.join-item {
+	margin-top: 6px;
+	padding: 6px 8px;
+	border-radius: 8px;
+	background-color: #f7f9ff;
+}
+</style>
