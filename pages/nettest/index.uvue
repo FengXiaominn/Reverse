@@ -3,6 +3,8 @@
 		<view class="section-card">
 			<text class="section-title">网络最小测试</text>
 			<text class="line">Base URL：{{ baseUrl }}</text>
+			<text class="line">AppID：{{ appId }}</text>
+			<text class="line">Env：{{ envVersion }}</text>
 			<text class="line">最后结果：{{ lastResult.length > 0 ? lastResult : '未测试' }}</text>
 			<view class="btn-row">
 				<button class="btn" @click="testPing">测 /api/ping</button>
@@ -28,6 +30,26 @@ import { getApiBaseUrl } from '../../utils/invite-api.uts'
 const baseUrl = ref(getApiBaseUrl())
 const lastResult = ref('')
 const logs = ref<Array<string>>([])
+const appId = ref('unknown')
+const envVersion = ref('unknown')
+
+function loadRuntimeInfo() {
+	// #ifdef MP-WEIXIN
+	const info : any = wx.getAccountInfoSync()
+	if (info != null && info.miniProgram != null) {
+		if (info.miniProgram.appId != null) {
+			appId.value = info.miniProgram.appId
+		}
+		if (info.miniProgram.envVersion != null) {
+			envVersion.value = info.miniProgram.envVersion
+		}
+	}
+	// #endif
+}
+
+onMounted(() => {
+	loadRuntimeInfo()
+})
 
 function stamp() : string {
 	const d = new Date()
@@ -86,8 +108,10 @@ function runRequest(path : string, method : string, data : any) {
 			if (err != null && err.errMsg != null) {
 				raw = err.errMsg
 			}
+			const detail = JSON.stringify(err)
 			lastResult.value = `FAIL ${raw}`
 			pushLog(`FAIL ${raw}`)
+			pushLog(`FAIL_DETAIL ${detail}`)
 		}
 	})
 }
