@@ -1,7 +1,7 @@
 // 请替换成你的真实域名（必须 HTTPS，且已在小程序后台配置合法域名）
-const TEST_API_BASE_URL = 'https://test-api.bingzai.cn'
-const PROD_API_BASE_URL = 'https://test-api.bingzai.cn'
-const DEV_API_BASE_URL = 'https://test-api.bingzai.cn'
+const TEST_API_BASE_URL = 'https://mp-api.bingzai.cn'
+const PROD_API_BASE_URL = 'https://mp-api.bingzai.cn'
+const DEV_API_BASE_URL = 'https://mp-api.bingzai.cn'
 
 function trimTrailingSlash(url : string) : string {
 	if (url.endsWith('/')) {
