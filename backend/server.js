@@ -129,6 +129,13 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`)
     const pathname = url.pathname
 
+    if (req.method === 'GET' && pathname === '/api/ping') {
+      return json(res, 200, {
+        ok: true,
+        time: nowText()
+      })
+    }
+
     if (req.method === 'GET' && pathname === '/api/invites/received') {
       return json(res, 200, receivedInvites)
     }

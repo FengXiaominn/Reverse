@@ -6,6 +6,9 @@
 			<view class="inbox-entry" @click="goToInvites">
 				<text class="inbox-entry-text">查看收到的邀请</text>
 			</view>
+			<view class="inbox-entry nettest-entry" @click="goToNetTest">
+				<text class="inbox-entry-text">网络诊断</text>
+			</view>
 		</view>
 
 		<view class="section-card">
@@ -165,6 +168,12 @@ const displayCourt = computed(() => {
 function goToInvites() {
 	uni.navigateTo({
 		url: '/pages/invites/index'
+	})
+}
+
+function goToNetTest() {
+	uni.navigateTo({
+		url: '/pages/nettest/index'
 	})
 }
 
@@ -386,6 +395,11 @@ function publishRequest() {
 .inbox-entry-text {
 	color: #ffffff;
 	font-size: 13px;
+}
+
+.nettest-entry {
+	margin-top: 8px;
+	background-color: #4b7cff;
 }
 
 .section-card {

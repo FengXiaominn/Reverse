@@ -17,6 +17,12 @@
 			"style": {
 				"navigationBarTitleText": "活动分享"
 			}
+		},
+		{
+			"path": "pages/nettest/index",
+			"style": {
+				"navigationBarTitleText": "网络诊断"
+			}
 		}
 	],
 	"globalStyle": {
