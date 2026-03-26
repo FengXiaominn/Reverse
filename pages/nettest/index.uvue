@@ -8,10 +8,13 @@
 			<text class="line">最后结果：{{ lastResult.length > 0 ? lastResult : '未测试' }}</text>
 			<view class="btn-row">
 				<button class="btn" @click="testPing">测 /api/ping</button>
-				<button class="btn" @click="testInvites">测 /api/invites/received</button>
+				<button class="btn" @click="testPingByWx">测 wx.request</button>
 			</view>
 			<view class="btn-row">
+				<button class="btn" @click="testInvites">测 /api/invites/received</button>
 				<button class="btn" @click="testCreate">测 POST /api/activities/create</button>
+			</view>
+			<view class="btn-row">
 				<button class="btn btn-muted" @click="clearLogs">清空日志</button>
 			</view>
 		</view>
@@ -74,6 +77,36 @@ function testPing() {
 
 function testInvites() {
 	runRequest('/api/invites/received', 'GET', null)
+}
+
+function testPingByWx() {
+	const url = baseUrl.value + '/api/ping'
+	pushLog(`WX_REQ GET ${url}`)
+	// #ifdef MP-WEIXIN
+	wx.request({
+		url,
+		method: 'GET',
+		success: (res : any) => {
+			const body = JSON.stringify(res.data)
+			lastResult.value = `WX_SUCCESS HTTP ${res.statusCode}`
+			pushLog(`WX_SUCCESS HTTP ${res.statusCode} ${body}`)
+		},
+		fail: (err : any) => {
+			let raw = 'unknown'
+			if (err != null && err.errMsg != null) {
+				raw = err.errMsg
+			}
+			const errno = err != null && err.errno != null ? `${err.errno}` : 'none'
+			const errCode = err != null && err.errCode != null ? `${err.errCode}` : 'none'
+			const cronet = err != null && err.cronet_error_code != null ? `${err.cronet_error_code}` : 'none'
+			const detail = JSON.stringify(err)
+			lastResult.value = `WX_FAIL ${raw}`
+			pushLog(`WX_FAIL ${raw}`)
+			pushLog(`WX_FAIL_CODE errno=${errno} errCode=${errCode} cronet=${cronet}`)
+			pushLog(`WX_FAIL_DETAIL ${detail}`)
+		}
+	})
+	// #endif
 }
 
 function testCreate() {
