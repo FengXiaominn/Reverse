@@ -15,6 +15,9 @@
 				<button class="btn" @click="testCreate">测 POST /api/activities/create</button>
 			</view>
 			<view class="btn-row">
+				<button class="btn" @click="testWechatOfficial">测微信官方域名</button>
+			</view>
+			<view class="btn-row">
 				<button class="btn btn-muted" @click="clearLogs">清空日志</button>
 			</view>
 		</view>
@@ -119,6 +122,32 @@ function testCreate() {
 		hasDinner: false,
 		note: 'nettest'
 	})
+}
+
+function testWechatOfficial() {
+	const url = 'https://api.weixin.qq.com/cgi-bin/getcallbackip'
+	pushLog(`WX_OFFICIAL_REQ GET ${url}`)
+	// #ifdef MP-WEIXIN
+	wx.request({
+		url,
+		method: 'GET',
+		success: (res : any) => {
+			const body = JSON.stringify(res.data)
+			lastResult.value = `WX_OFFICIAL_SUCCESS HTTP ${res.statusCode}`
+			pushLog(`WX_OFFICIAL_SUCCESS HTTP ${res.statusCode} ${body}`)
+		},
+		fail: (err : any) => {
+			let raw = 'unknown'
+			if (err != null && err.errMsg != null) {
+				raw = err.errMsg
+			}
+			const detail = JSON.stringify(err)
+			lastResult.value = `WX_OFFICIAL_FAIL ${raw}`
+			pushLog(`WX_OFFICIAL_FAIL ${raw}`)
+			pushLog(`WX_OFFICIAL_FAIL_DETAIL ${detail}`)
+		}
+	})
+	// #endif
 }
 
 function runRequest(path : string, method : string, data : any) {
